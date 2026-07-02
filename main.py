@@ -32,7 +32,7 @@ from config.settings import OUTPUT_CSV_PATH, LIMIT, PIPELINE_MODE
 from db.database import get_engine, fetch_images
 from s3.loader import get_s3_client, load_image
 from classifier.clip_classifier import CLIPClassifier
-from writer.csv_writer import CSVWriter, get_existing_legacy_ids
+from writer.csv_writer import CSVWriter, get_existing_row_keys
 from utils.logger import get_logger
 
 log = get_logger("main")
@@ -183,7 +183,7 @@ def run_pipeline() -> None:
         db_engine = get_engine()
         s3_client = get_s3_client()
 
-        already_written = get_existing_legacy_ids(OUTPUT_CSV_PATH)
+        already_written = get_existing_row_keys(OUTPUT_CSV_PATH)
         if already_written:
             log.info("Resuming: %d rows already in %s — these will be skipped.",
                       len(already_written), OUTPUT_CSV_PATH)
@@ -194,7 +194,8 @@ def run_pipeline() -> None:
                     log.info("Reached testing limit of %d records. Stopping.", LIMIT)
                     break
 
-                if meta["legacy_id"] in already_written:
+                row_key = f"{meta['s3_url']}|{meta['person_id']}|{meta.get('healthcase_id', '')}"
+                if row_key in already_written:
                     stats["already_done"] += 1
                     continue
 

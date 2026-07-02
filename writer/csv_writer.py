@@ -21,8 +21,7 @@ log = get_logger("csv_writer")
 FIELDNAMES = [
     "image_name",
     "s3_url",
-    "legacy_id",
-    "legacy_source",
+    "person_id",
     "healthcase_id",
     "prediction",
     "confidence",
@@ -32,17 +31,22 @@ FIELDNAMES = [
 ]
 
 
-def get_existing_legacy_ids(output_path: str, key_field: str = "legacy_id") -> set:
+def get_existing_row_keys(output_path: str) -> set:
     """
-    Reads legacy_ids already present in an existing output CSV,
-    so a re-run can skip rows that were already written.
+    Reads rows already present in an existing output CSV and returns a set
+    of composite keys (s3_url|person_id|healthcase_id) so a re-run can
+    skip rows that were already written.
     Returns an empty set if the file doesn't exist or is empty.
     """
     if not os.path.exists(output_path) or os.path.getsize(output_path) == 0:
         return set()
     with open(output_path, "r", newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        return {row[key_field] for row in reader if row.get(key_field)}
+        return {
+            f"{row.get('s3_url', '')}|{row.get('person_id', '')}|{row.get('healthcase_id', '')}"
+            for row in reader
+            if row.get("s3_url")
+        }
 
 
 class CSVWriter:
