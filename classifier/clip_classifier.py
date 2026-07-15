@@ -65,6 +65,11 @@ OTHER_PROMPTS = [
     "a color photo of a body part like elbow knee wrist or shoulder with skin",
     "a wound or skin condition photograph showing skin surface in color",
     "a photograph of a rash bruise or skin lesion on colored skin",
+    "a signatue photograph",
+    "a company or app logo icon on a plain or colored background",
+    "a digital splash screen or launch screen showing a brand logo",
+    "a graphic logo image with a symbol and brand name, not a document",
+    "an application icon or watermark image with minimal text",
 ]
 
 ALL_PROMPTS = [XRAY_PROMPTS, PRESCRIPTION_PROMPTS, OTHER_PROMPTS]

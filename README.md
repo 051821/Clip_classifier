@@ -162,3 +162,6 @@ if pred and pred["prediction"] == "Prescription / Document":
 
 ## change pipeline mode from testing to production for full run
 ## can also be done without docker
+
+
+GPU + batching + DataLoader + one-time CSV write: potentially 1–3 min / 1000 images, depending on the GPU and storage speed.

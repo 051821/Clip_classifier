@@ -13,7 +13,14 @@ Each row returned is a dict with:
   - s3_url        : full s3:// URL     (e.g. "s3://bucket/2xsqqgw/image_abc.jpg")
   - legacy_id     : "bir_{id}_{idx}"  or  "hca_{id}"
   - legacy_source : "bodyvitals_imagereport"  or  "healthcase_attached"
+  - person_id     : BIR -> ir.person_id; HCA -> h.person_id (validated, see below)
   - healthcase_id : populated for HCA rows; None for BIR rows
+
+HCA rows are only fetched when ir.person_id = h.person_id, i.e. the image
+report's person actually matches the health case's own person. This is the
+same check used in the validation query / migrate_documents.py's SQL filter,
+so a row that appears in this CSV is guaranteed to already be
+person-ID-correct -- no separately mismatched rows get written out.
 """
 
 from typing import Generator
@@ -29,7 +36,8 @@ _BIR_SQL = """
     SELECT
         ir.id,
         ir.reportimgurl,
-        ir.reporttitle
+        ir.reporttitle,
+        ir.person_id
     FROM "BodyVitals_imagereportdetails" ir
     WHERE ir.reportimgurl IS NOT NULL
       AND ir.reportimgurl <> ''
@@ -37,20 +45,29 @@ _BIR_SQL = """
     ORDER BY ir.id ASC
 """
 
+# HCA rows are additionally validated against HealthCase_healthcase:
+# only rows where the image report's person_id actually matches the
+# health case's own person_id are fetched. This mirrors the check from
+# the validation query (ir.person_id = h.person_id) and keeps
+# migrate_documents.py's SQL-level filter and this CSV in agreement.
 _HCA_SQL = """
     SELECT
         hca.id,
         hca.healthcase_id,
         hca.attachedreporttitle,
         hca.uploaderrole,
-        ir.reportimgurl
+        ir.reportimgurl,
+        h.person_id
     FROM "HealthCase_attachedreporthealthcase" hca
     INNER JOIN "BodyVitals_imagereportdetails" ir
         ON ir.imagereportid = hca.attachedreportid
+    INNER JOIN "HealthCase_healthcase" h
+        ON h.id = hca.healthcase_id
     WHERE ir.reportimgurl IS NOT NULL
       AND ir.reportimgurl <> ''
       AND ir.person_id    IS NOT NULL
       AND hca.healthcase_id IS NOT NULL
+      AND ir.person_id = h.person_id
     ORDER BY hca.id ASC
 """
 
@@ -87,6 +104,7 @@ def fetch_images(engine) -> Generator[dict, None, None]:
                     "s3_url":        _build_s3_url(key),
                     "legacy_id":     f"bir_{row['id']}_{idx}",
                     "legacy_source": "bodyvitals_imagereport",
+                    "person_id":     str(row["person_id"]),
                     "healthcase_id": None,
                 }
 
@@ -108,6 +126,7 @@ def fetch_images(engine) -> Generator[dict, None, None]:
                 "s3_url":        _build_s3_url(key),
                 "legacy_id":     f"hca_{row['id']}",
                 "legacy_source": "healthcase_attached",
+                "person_id":     str(row["person_id"]),
                 "healthcase_id": str(row["healthcase_id"]),
             }
 
